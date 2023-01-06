@@ -19,7 +19,7 @@ const users = [
   },
 ];
 
-let refreshToken = [];
+let refreshTokens = [];
 
 app.post("/api/refresh", (req, res) => {
   // take the refresh token from the userk
@@ -27,17 +27,17 @@ app.post("/api/refresh", (req, res) => {
 
   // send error if there is no token or it's in valid
   if (!refreshToken) return res.status(401).json("You are not authenticated");
-  if (!refreshToken.includes(refreshToken)) {
+  if (!refreshTokens.includes(refreshToken)) {
     return res.status(403).json("Refresh token is not valid!");
   }
   jwt.verify(refreshToken, "myRefreshSecretKey", (err, user) => {
     err && console.log(err);
-    refreshToken = refreshToken.filter((token) => token !== refreshToken);
+    refreshTokens = refreshTokens.filter((token) => token !== refreshToken);
 
-    const newAccessToken = generateRefreshToken(user);
+    const newAccessToken = generateAccessToken(user);
     const newRefreshToken = generateRefreshToken(user);
 
-    refreshToken.push(newRefreshToken);
+    refreshTokens.push(newRefreshToken);
     res.status(200).json({
       accessToken: newAccessToken,
       refreshToken: newRefreshToken,
@@ -49,7 +49,7 @@ app.post("/api/refresh", (req, res) => {
 
 const generateAccessToken = (user) => {
   return jwt.sign({ id: user.id, isAdmin: user.isAdmin }, "mySecretKey", {
-    expiresIn: "15m",
+    expiresIn: "30s",
   });
 };
 
@@ -73,12 +73,13 @@ app.post("/api/login", (req, res) => {
     //Generate an access token
     const accessToken = generateAccessToken(user);
     const refreshToken = generateRefreshToken(user);
-    refreshToken.push(refreshToken);
+    refreshTokens.push(refreshToken);
 
     res.json({
       username: user.username,
       isAdmin: user.isAdmin,
       accessToken,
+      refreshToken,
     });
   } else {
     res.status(400).json("Username and Password incorrect");
@@ -108,6 +109,18 @@ app.delete("/api/users/:userId", verify, (req, res) => {
   } else {
     res.status(401).json("You are not allowed to delete this user!");
   }
+});
+
+/* app.post("/api/logout", verify(req, res) => { */
+/*   const refreshToken = req.body.token */
+/*   refreshTokens = refreshTokens.filter((token) => token !== refreshToken) */
+/*   res.status(200).json("You logged out successfully") */
+/* }) */
+
+app.post("/api/logout", verify, (req, res) => {
+  const refreshToken = req.body.token;
+  refreshTokens = refreshTokens.filter((token) => token !== refreshToken);
+  res.status(200).json("You logged out successfully");
 });
 
 app.listen(5001, () => console.log("sever running on port 5001"));
